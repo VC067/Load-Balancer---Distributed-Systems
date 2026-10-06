@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Distributed Load Balancer with Consistent Hashing & Docker Replicas</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    @page {
+      size: A4;
+      margin: 16mm 15mm 16mm 15mm;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      line-height: 1.55;
+      color: #1E293B;
+      background: #FFFFFF;
+      padding: 2rem;
+      max-width: 860px;
+      margin: 0 auto;
+      font-size: 10pt;
+    }
+
+    .header-box {
+      border-bottom: 2px solid #4F46E5;
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .badge {
+      display: inline-block;
+      background: #EEF2FF;
+      color: #4F46E5;
+      font-weight: 700;
+      font-size: 8pt;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 0.4rem;
+    }
+
+    h1 {
+      font-size: 18pt;
+      font-weight: 800;
+      color: #0F172A;
+      margin-bottom: 0.4rem;
+      line-height: 1.25;
+    }
+
+    .meta {
+      font-size: 8.5pt;
+      color: #64748B;
+    }
+
+    h2 {
+      font-size: 12pt;
+      font-weight: 800;
+      color: #0F172A;
+      margin-top: 1.4rem;
+      margin-bottom: 0.5rem;
+      border-bottom: 1px solid #E2E8F0;
+      padding-bottom: 0.25rem;
+      page-break-after: avoid;
+    }
+
+    p {
+      margin-bottom: 0.65rem;
+      color: #334155;
+    }
+
+    ul, ol {
+      margin-bottom: 0.65rem;
+      padding-left: 1.4rem;
+      color: #334155;
+    }
+
+    li {
+      margin-bottom: 0.25rem;
+    }
+
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    code {
+      background: #F1F5F9;
+      color: #0F172A;
+      padding: 0.12rem 0.3rem;
+      border-radius: 4px;
+      font-size: 8.5pt;
+    }
+
+    pre {
+      background: #0F172A;
+      color: #F8FAFC;
+      padding: 0.75rem 1rem;
+      border-radius: 6px;
+      font-size: 8pt;
+      line-height: 1.4;
+      margin-bottom: 0.85rem;
+      page-break-inside: avoid;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 0.85rem 0;
+      font-size: 8.5pt;
+      page-break-inside: avoid;
+    }
+
+    th, td {
+      border: 1px solid #CBD5E1;
+      padding: 0.45rem 0.65rem;
+      text-align: left;
+    }
+
+    th {
+      background: #F8FAFC;
+      color: #0F172A;
+      font-weight: 700;
+    }
+
+    tr:nth-child(even) {
+      background: #F8FAFC;
+    }
+
+    .qna-box {
+      background: #F8FAFC;
+      border: 1px solid #E2E8F0;
+      border-left: 3px solid #4F46E5;
+      border-radius: 4px;
+      padding: 0.6rem 0.85rem;
+      margin-bottom: 0.6rem;
+      page-break-inside: avoid;
+    }
+
+    .qna-q {
+      font-weight: 700;
+      color: #1E293B;
+      font-size: 9pt;
+      margin-bottom: 0.15rem;
+    }
+
+    .qna-a {
+      color: #475569;
+      font-size: 8.5pt;
+    }
+
+    @media print {
+      body {
+        padding: 0;
+        max-width: 100%;
+      }
+      .no-print {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="no-print" style="background: #EEF2FF; border: 1px solid #C7D2FE; border-radius: 8px; padding: 0.75rem 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center;">
+    <div>
+      <strong style="color: #4338CA;">PDF Export Ready:</strong> Press <code>Cmd + P</code> (or <code>Ctrl + P</code>) and click <strong>"Save as PDF"</strong>.
+    </div>
+    <button onclick="window.print()" style="background: #4F46E5; color: white; border: none; padding: 0.4rem 0.85rem; border-radius: 6px; font-weight: 600; cursor: pointer;">
+      Print to PDF
+    </button>
+  </div>
+
+  <div class="header-box">
+    <div class="badge">B.Tech Cloud Computing & Distributed Systems Project</div>
+    <h1>Distributed Load Balancer with Consistent Hashing & Docker Replicas</h1>
+    <div class="meta">
+      <strong>Course:</strong> B.Tech Cloud Computing &bull; 
+      <strong>Technologies:</strong> Python 3.10, Flask, Docker, Consistent Hashing &bull; 
+      <strong>Dashboard:</strong> http://localhost:6000/
+    </div>
+  </div>
+
+  <h2>1. What is the Problem?</h2>
+  <p>When web services grow, handling high traffic on a single server causes three critical problems:</p>
+  <ul>
+    <li><strong>Single Point of Failure (SPOF) & Server Overload:</strong> If all clients connect to only one server, that server quickly runs out of CPU and memory. When it crashes, the entire service goes completely offline.</li>
+    <li><strong>The Flaw of Traditional Modulo Load Balancing (<code>Hash % N</code>):</strong> Naive systems divide requests across $N$ servers using remainder arithmetic: <code>Server = Request_ID % N</code>. When you add a 4th server ($N=3 \to 4$), the divisor changes for every key. <strong>Almost 100% of all requests are remapped to completely different servers.</strong> This wipes out server caches, overloads backend databases, and causes system crashes.</li>
+    <li><strong>Silent Server Crashes (No Fault Tolerance):</strong> If one server replica crashes quietly, a basic system does not notice and keeps routing requests to the dead server, returning errors to users.</li>
+  </ul>
+
+  <h2>2. How Are We Solving It?</h2>
+  <p>We built a <strong>Distributed Load Balancer</strong> that coordinates multiple server replicas using <strong>Consistent Hashing</strong> and <strong>Docker containerization</strong>:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>The Problem</th>
+        <th>How We Solve It</th>
+        <th>Technical Mechanism</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Single Point of Failure</strong></td>
+        <td><strong>Server Replicas (Docker)</strong></td>
+        <td>Multiple identical server replicas (<code>Server-1</code>, <code>Server-2</code>, <code>Server-3</code>) run in isolated Docker containers.</td>
+      </tr>
+      <tr>
+        <td><strong>Modulo Remapping Flaw</strong></td>
+        <td><strong>Consistent Hashing</strong></td>
+        <td>Servers and requests are mapped onto a 512-slot circular ring with virtual nodes ($K=20$). Adding a server only moves $\sim 1/N$ of keys!</td>
+      </tr>
+      <tr>
+        <td><strong>Silent Server Crashes</strong></td>
+        <td><strong>Heartbeat Fault Detection</strong></td>
+        <td>The load balancer probes <code>/heartbeat</code> every 30s. Dead containers are automatically pruned and deleted via <code>docker rm -f</code>.</td>
+      </tr>
+      <tr>
+        <td><strong>Traffic Spikes</strong></td>
+        <td><strong>Dynamic Horizontal Scaling</strong></td>
+        <td>REST endpoints (<code>/add</code>, <code>/rm</code>) spin up or terminate Docker containers dynamically in seconds.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>3. System Architecture</h2>
+  <pre><code>        Client Requests (Browser / cURL)
+                       │
+                       ▼
+         ┌───────────────────────────┐
+         │   Load Balancer (Port 6000)│
+         │   - Consistent Hash Ring  │
+         │   - Heartbeat Checker (30s)│
+         └─────────────┬─────────────┘
+                       │ Docker Bridge Network (load_balancer_network)
+           ┌───────────┼───────────┐
+           ▼           ▼           ▼
+     ┌───────────┐┌───────────┐┌───────────┐
+     │ Server-1  ││ Server-2  ││ Server-3  │
+     │ (Docker)  ││ (Docker)  ││ (Docker)  │
+     └───────────┘└───────────┘└───────────┘</code></pre>
+
+  <h2>4. Consistent Hashing Explained Simply</h2>
+  <p>Instead of basic modulo division (<code>Request % N</code>), Consistent Hashing maps both servers and requests onto a <strong>circular ring of 512 slots (indices 0 to 511)</strong>:</p>
+  <ul>
+    <li><strong>Virtual Nodes (K = 20):</strong> To prevent one server from receiving too many requests, each server replica is assigned 20 virtual positions around the ring using:
+      <pre><code>Φ(i, j) = (i² + j² + 2j + 25) % 512</code></pre>
+    </li>
+    <li><strong>Clockwise Routing:</strong> When an incoming request arrives, its Request ID is hashed to a slot using:
+      <pre><code>H(i) = (i² + 2i + 17) % 512</code></pre>
+      The load balancer travels <strong>clockwise</strong> along the ring until it hits the first server replica. That server handles the request.
+    </li>
+    <li><strong>Why Consistent Hashing is Superior:</strong> When a new server is added, only a small slice of keys is remapped to the new server. All other servers keep their existing requests, preserving cache affinity.</li>
+  </ul>
+
+  <h2>5. REST API Reference</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Endpoint</th>
+        <th>Method</th>
+        <th>Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>/home</code></td>
+        <td>GET</td>
+        <td>Routes request to a server replica using consistent hashing.</td>
+      </tr>
+      <tr>
+        <td><code>/rep</code></td>
+        <td>GET</td>
+        <td>Returns list and count of all active, healthy server replicas.</td>
+      </tr>
+      <tr>
+        <td><code>/add</code></td>
+        <td>POST</td>
+        <td>Horizontally scales up by spawning new Docker server containers.</td>
+      </tr>
+      <tr>
+        <td><code>/rm</code></td>
+        <td>POST / DELETE</td>
+        <td>Horizontally scales down by stopping and removing Docker server containers.</td>
+      </tr>
+      <tr>
+        <td><code>/checkpoint</code></td>
+        <td>GET</td>
+        <td>Returns request counts handled by each server replica.</td>
+      </tr>
+      <tr>
+        <td><code>/graph</code></td>
+        <td>GET</td>
+        <td>Returns a Matplotlib-generated bar chart image of traffic distribution.</td>
+      </tr>
+      <tr>
+        <td><code>/ring</code></td>
+        <td>GET</td>
+        <td>Returns virtual node slot coordinates on the 512-slot ring.</td>
+      </tr>
+      <tr>
+        <td><code>/</code></td>
+        <td>GET</td>
+        <td>Opens the interactive presentation GUI dashboard.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>6. Fault Tolerance & Self-Healing</h2>
+  <ol>
+    <li><strong>Failure Simulation:</strong> A container crashes or is stopped manually (e.g. <code>Server-2</code>).</li>
+    <li><strong>Heartbeat Detection:</strong> Every 30 seconds, the load balancer sends an HTTP request to <code>http://&lt;server&gt;:5000/heartbeat</code>.</li>
+    <li><strong>Dead Container Removal:</strong> <code>Server-2</code> fails the heartbeat check.</li>
+    <li><strong>Automated Recovery Actions:</strong>
+      <ul>
+        <li>Marks <code>Server-2</code> as unhealthy.</li>
+        <li>Purges its virtual nodes from the consistent hash ring.</li>
+        <li>Executes <code>docker rm -f Server-2</code> to clean up the dead container.</li>
+        <li>Reroutes subsequent traffic to <code>Server-1</code> and <code>Server-3</code> with zero client downtime.</li>
+      </ul>
+    </li>
+  </ol>
+
+  <h2>7. Viva / Presentation Q&A Cheat Sheet</h2>
+  
+  <div class="qna-box">
+    <div class="qna-q">Q1: What is a Load Balancer?</div>
+    <div class="qna-a">A: A system that distributes incoming client requests across multiple backend server replicas so no single server becomes a bottleneck.</div>
+  </div>
+
+  <div class="qna-box">
+    <div class="qna-q">Q2: What is the main problem with standard Modulo Load Balancing (Hash % N)?</div>
+    <div class="qna-a">A: When you add or remove a server (N changes), almost 100% of all request keys are remapped, destroying caches and overloading databases. Consistent Hashing solves this by only moving ~1/N of keys.</div>
+  </div>
+
+  <div class="qna-box">
+    <div class="qna-q">Q3: What are Virtual Nodes in Consistent Hashing?</div>
+    <div class="qna-a">A: Instead of placing each physical server at only 1 spot on the ring, we place it at K=20 virtual positions. This ensures traffic is distributed evenly and prevents clustering.</div>
+  </div>
+
+  <div class="qna-box">
+    <div class="qna-q">Q4: Why use Docker containers in this project?</div>
+    <div class="qna-a">A: Docker allows us to run multiple isolated server replicas on a single machine, each with its own network identity, port, and environment variables.</div>
+  </div>
+
+  <div class="qna-box">
+    <div class="qna-q">Q5: How does Heartbeat Fault Tolerance work?</div>
+    <div class="qna-a">A: The load balancer polls /heartbeat on every server replica every 30 seconds. If a replica stops responding, it is automatically removed from the consistent hash ring and its container is deleted.</div>
+  </div>
+
+</body>
+</html>
